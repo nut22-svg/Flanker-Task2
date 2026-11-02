@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="th" class="h-full bg-slate-950">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Eriksen Flanker Task - Research Lab</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Sarabun', 'sans-serif'],
+                        mono: ['Courier New', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        body {
+            user-select: none;
+            -webkit-user-select: none;
+            background-color: #020617;
+        }
+        .stimulus-text {
+            font-family: 'Courier New', Courier, monospace;
+            letter-spacing: 0.2em;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.94);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    </style>
+</head>
+<body class="h-full font-sans text-slate-100 antialiased flex flex-col justify-between overflow-x-hidden bg-slate-950 relative">
+
+    <!-- Canvas Background for Dynamic Dust Particle Simulation -->
+    <canvas id="bgCanvas" class="fixed inset-0 w-full h-full z-0 pointer-events-none bg-slate-950"></canvas>
+
+    <!-- Header / Academic Navigation Bar -->
+    <header id="mainHeader" class="w-full bg-slate-900/90 backdrop-blur-md border-b border-slate-800 py-3 px-6 fixed top-0 left-0 z-40 flex justify-between items-center shadow-sm">
+        <div class="flex items-center space-x-3">
+            <div class="w-3 h-3 rounded-full bg-indigo-500 animate-pulse"></div>
+            <h1 class="font-bold text-white text-sm sm:text-base tracking-wide">Eriksen Flanker Task <span class="text-xs font-normal text-slate-400 hidden sm:inline">(Beck & Lavie, 2005)</span></h1>
+        </div>
+        <div id="trialProgressBadge" class="hidden text-xs font-semibold px-3 py-1 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-800">
+            Block 1/2 | Trial 0/48
+        </div>
+    </header>
+
+    <!-- Main Dynamic Application Container -->
+    <main class="flex-grow flex items-center justify-center pt-16 pb-8 px-4 w-full max-w-5xl mx-auto z-10 relative">
+        
+        <!-- SECTION 1: Participant Demographics Setup Screen -->
+        <section id="setupScreen" class="w-full max-w-lg glass-panel rounded-2xl shadow-2xl p-6 sm:p-8 transition-all my-auto border-t-4 border-indigo-500">
+            <div class="text-center mb-6">
+                <span class="inline-block p-3 rounded-xl bg-indigo-950/80 text-indigo-400 mb-2 border border-indigo-800/50">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                </span>
+                <h2 class="text-2xl font-bold text-white">การลงทะเบียนผู้เข้าร่วมการทดลอง</h2>
+                <p class="text-sm text-slate-400 mt-1">กรุณากรอกข้อมูลส่วนบุคคลก่อนเริ่มต้นทำแบบทดสอบทางจิตวิทยา</p>
+            </div>
+
+            <form id="demographicsForm" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">รหัสผู้เข้าร่วม / ชื่อ (Participant ID)</label>
+                    <input type="text" id="participantId" required placeholder="เช่น P-001 หรือ ชื่อ-นามสกุล" class="w-full px-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-sm">
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">อายุ (Age: 18-21)</label>
+                        <input type="number" id="participantAge" min="18" max="21" required placeholder="ระบุอายุ (18-21)" class="w-full px-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">ชั่วโมงการนอน (Sleep)</label>
+                        <input type="number" id="sleepHours" step="0.5" min="0" max="24" required placeholder="ระบุจำนวนชั่วโมง" class="w-full px-4 py-2.5 rounded-xl bg-slate-900/90 border border-slate-700 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-sm">
+                    </div>
+                </div>
+
+                <div id="sleepWarning" class="hidden p-3 rounded-xl bg-amber-950/60 border border-amber-800 text-amber-200 text-xs flex items-start space-x-2">
+                    <svg class="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    <span><strong>คำเตือนเรื่องการพักผ่อน:</strong> การนอนหลับน้อยกว่า 6 ชั่วโมงอาจส่งผลต่อเวลาตอบสนอง (Reaction Time)</span>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase text-slate-300 mb-1">เงื่อนไขสภาวะแวดล้อม (Experimental Condition)</label>
+                    <select id="expCondition" required class="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-sm">
+                        <option value="" disabled selected>-- เลือกเงื่อนไขสภาวะแวดล้อม --</option>
+                        <option value="static">Group 1: Static Background (พื้นหลังนิ่ง)</option>
+                        <option value="dynamic">Group 2: Dynamic Colored Dust (ฝุ่นละอองสีเคลื่อนไหว)</option>
+                    </select>
+                </div>
+
+                <button type="submit" class="w-full mt-6 py-3.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition shadow-lg shadow-indigo-950 flex items-center justify-center space-x-2">
+                    <span>ถัดไป: อ่านคำแนะนำการทดสอบ</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                </button>
+            </form>
+        </section>
+
+        <!-- SECTION 2: Instructions Screen -->
+        <section id="instructionsScreen" class="hidden w-full max-w-2xl glass-panel rounded-2xl shadow-2xl p-6 sm:p-8 transition-all my-auto">
+            <h2 class="text-2xl font-bold text-white text-center mb-4">คำแนะนำการทดสอบ (Task Instructions)</h2>
+            
+            <div class="space-y-4 text-sm text-slate-300 leading-relaxed">
+                <p>ภารกิจของคุณคือการระบุ <strong>ทิศทางของลูกศรตัวตรงกลาง (ตัวที่ 3)</strong> จากชุดลูกศร 5 ตัว โดยไม่ต้องสนใจลูกศรรอบข้าง (Flankers):</p>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 my-4">
+                    <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col items-center justify-center">
+                        <span class="text-xs text-slate-400 mb-1">สอดคล้องกัน (Congruent)</span>
+                        <span class="stimulus-text text-2xl font-bold text-indigo-400">&lt;&lt;&lt;&lt;&lt;</span>
+                        <span class="text-xs text-slate-300 font-medium mt-1">ตรงกลางชี้ซ้าย &rarr; ตอบ <strong>"ซ้าย"</strong></span>
+                    </div>
+                    <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 flex flex-col items-center justify-center">
+                        <span class="text-xs text-slate-400 mb-1">ไม่สอดคล้องกัน (Incongruent)</span>
+                        <span class="stimulus-text text-2xl font-bold text-amber-400">&gt;&gt;&lt;&gt;&gt;</span>
+                        <span class="text-xs text-slate-300 font-medium mt-1">ตรงกลางชี้ซ้าย &rarr; ตอบ <strong>"ซ้าย"</strong></span>
+                    </div>
+                </div>
+
+                <div class="p-4 rounded-xl bg-indigo-950/60 border border-indigo-800 text-indigo-200">
+                    <h3 class="font-semibold text-xs uppercase tracking-wider mb-2 text-indigo-300">การควบคุมการตอบสนอง:</h3>
+                    <p class="text-xs text-slate-300 mb-1.5">&bull; <strong>มือถือ / แท็บเล็ต:</strong> แแตะปุ่มสัมผัสขนาดใหญ่ด้านล่างหน้าจอ (ซ้าย / ขวา)</p>
+                    <p class="text-xs text-slate-300">&bull; <strong>คีย์บอร์ด:</strong> กดปุ่มลูกศร <code class="bg-slate-800 px-1.5 py-0.5 rounded text-amber-300">&larr;</code> / <code class="bg-slate-800 px-1.5 py-0.5 rounded text-amber-300">&rarr;</code> หรือ <code class="bg-slate-800 px-1.5 py-0.5 rounded text-amber-300">A</code> / <code class="bg-slate-800 px-1.5 py-0.5 rounded text-amber-300">D</code></p>
+                </div>
+
+                <div class="text-xs text-slate-400 space-y-1">
+                    <p>&bull; ลูกศรจะปรากฏขึ้นอย่างรวดเร็วเพียง <strong>150 มิลลิวินาที</strong> แล้วเปลี่ยนเป็นหน้าว่าง กรุณาตอบสนองให้เร็วและแม่นยำที่สุด</p>
+                    <p>&bull; การทดลองจริงแบ่งเป็น 2 บล็อก บล็อกละ 48 ข้อ (รวม 96 ข้อ) พร้อมพักสายตา 60 วินาที</p>
+                </div>
+            </div>
+
+            <div class="mt-6 flex flex-col sm:flex-row gap-3">
+                <button id="startPracticeBtn" class="flex-1 py-3.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition shadow-lg flex justify-center items-center space-x-2">
+                    <span>เริ่มรอบทดลองทำ (4 ข้อ)</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                </button>
+            </div>
+        </section>
+
+        <!-- SECTION 2.5: Ready Screen Before Main Experiment (96 Trials) -->
+        <section id="readyMainScreen" class="hidden w-full max-w-lg glass-panel rounded-2xl shadow-2xl border-t-4 border-indigo-500 p-6 sm:p-8 text-center my-auto">
+            <div class="w-16 h-16 bg-indigo-950/80 text-indigo-400 border border-indigo-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <h2 class="text-2xl font-bold text-white mb-2">จบการทดลองทำ (Practice Complete)</h2>
+            <p class="text-sm text-slate-300 mb-6 leading-relaxed">
+                คุณทำรอบฝึกซ้อมครบ 4 ข้อแล้ว!<br>
+                หากพร้อมเริ่มต้น **แบบทดสอบจริงจำนวน 96 ข้อ** (แบ่งเป็น 2 บล็อก บล็อกละ 48 ข้อ) กรุณากดปุ่มด้านล่างเพื่อเริ่มทำทดสอบ
+            </p>
+            
+            <button id="startMainBtn" class="w-full py-3.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition shadow-lg shadow-indigo-950 flex items-center justify-center space-x-2">
+                <span>พร้อมแล้ว: เริ่มแบบทดสอบจริง (96 ข้อ)</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+            </button>
+        </section>
+
+        <!-- SECTION 3: Main Experiment / Stimulus Presentation Canvas -->
+        <section id="trialContainer" class="hidden relative w-full h-[82vh] flex flex-col items-center justify-between py-6">
+            
+            <!-- Central Stimulus Display -->
+            <div id="stimulusDisplay" class="my-auto text-center flex flex-col items-center justify-center min-h-[200px]">
+                <span id="stimulusText" class="stimulus-text text-6xl sm:text-8xl font-black text-white tracking-widest filter drop-shadow-2xl"></span>
+            </div>
+
+            <!-- Practice Feedback -->
+            <div id="practiceFeedback" class="absolute top-1/2 -translate-y-1/2 text-center font-bold text-xl hidden px-6 py-2 rounded-full backdrop-blur-md"></div>
+
+            <!-- Touch Response Buttons -->
+            <div class="w-full max-w-lg grid grid-cols-2 gap-4 px-2">
+                <button id="touchLeftBtn" class="py-5 sm:py-6 bg-indigo-600/90 active:bg-indigo-500 border border-indigo-400/40 rounded-2xl shadow-2xl font-black text-white text-2xl flex flex-col items-center justify-center cursor-pointer transition">
+                    <span class="text-3xl">&larr;</span>
+                    <span class="text-xs font-bold opacity-80 mt-1">ซ้าย (LEFT)</span>
+                </button>
+                <button id="touchRightBtn" class="py-5 sm:py-6 bg-indigo-600/90 active:bg-indigo-500 border border-indigo-400/40 rounded-2xl shadow-2xl font-black text-white text-2xl flex flex-col items-center justify-center cursor-pointer transition">
+                    <span class="text-3xl">&rarr;</span>
+                    <span class="text-xs font-bold opacity-80 mt-1">ขวา (RIGHT)</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- SECTION 4: Rest Screen Between Block 1 and Block 2 -->
+        <section id="restScreen" class="hidden w-full max-w-lg glass-panel rounded-2xl shadow-2xl border-t-4 border-amber-500 p-8 text-center my-auto">
+            <div class="w-16 h-16 bg-amber-950/80 text-amber-400 border border-amber-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            <h2 class="text-2xl font-bold text-white mb-2">เสร็จสิ้น บล็อกที่ 1 (Block 1 Complete)</h2>
+            <p class="text-sm text-slate-300 mb-6">กรุณาพักสายตาและสมาธิเป็นเวลา 60 วินาที เพื่อลดความล้าของสายตา</p>
+            
+            <div class="text-5xl font-extrabold text-amber-400 mb-6 font-mono" id="restTimerText">60</div>
+
+            <button id="continueBlock2Btn" class="w-full py-3.5 px-6 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition shadow-lg flex items-center justify-center space-x-2">
+                <span>เข้าสู่การทดสอบ บล็อกที่ 2</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+            </button>
+        </section>
+
+        <!-- SECTION 5: Academic Data Dashboard & Results Screen -->
+        <section id="resultsScreen" class="hidden w-full max-w-4xl glass-panel rounded-2xl shadow-2xl p-6 sm:p-8 space-y-6 my-auto">
+            <div class="border-b border-slate-700 pb-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                    <h2 class="text-2xl font-bold text-white">รายงานผลการทดลอง (Research Dashboard)</h2>
+                    <p class="text-xs text-slate-400 mt-0.5" id="participantSummaryHeader">Participant ID: - | Age: - | Condition: -</p>
+                </div>
+                <button id="exportCsvBtn" class="py-2.5 px-5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-sm rounded-xl shadow-md transition flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                    <span>ดาวน์โหลดข้อมูล CSV (UTF-8 BOM)</span>
+                </button>
+            </div>
+
+            <!-- Key Academic Metrics Cards -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="p-4 rounded-xl bg-slate-900/80 border border-emerald-500/30 text-center">
+                    <span class="text-xs font-semibold text-emerald-400 uppercase">Overall Accuracy</span>
+                    <div id="metricAccuracy" class="text-2xl sm:text-3xl font-extrabold text-white mt-1">--%</div>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-700 text-center">
+                    <span class="text-xs font-semibold text-slate-400 uppercase">Mean Valid RT</span>
+                    <div id="metricMeanRt" class="text-2xl sm:text-3xl font-extrabold text-indigo-400 mt-1">-- ms</div>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-900/80 border border-amber-500/30 text-center">
+                    <span class="text-xs font-semibold text-amber-300 uppercase">Flanker Effect</span>
+                    <div id="metricFlankerEffect" class="text-2xl sm:text-3xl font-extrabold text-amber-400 mt-1">-- ms</div>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-700 text-center">
+                    <span class="text-xs font-semibold text-rose-400 uppercase">Trimmed Outliers</span>
+                    <div id="metricTrimmed" class="text-2xl sm:text-3xl font-extrabold text-rose-400 mt-1">0</div>
+                </div>
+            </div>
+
+            <!-- Block Comparison Table -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-xl overflow-hidden shadow-sm">
+                <div class="bg-slate-900 px-4 py-2.5 border-b border-slate-800">
+                    <h3 class="font-bold text-xs uppercase text-slate-300">ตารางเปรียบเทียบผลรายบล็อก (Block 1 vs Block 2 Comparison)</h3>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs sm:text-sm">
+                        <thead class="bg-slate-950 border-b border-slate-800 text-slate-400 uppercase font-semibold">
+                            <tr>
+                                <th class="p-3">Block Number</th>
+                                <th class="p-3">Congruent Mean RT</th>
+                                <th class="p-3">Incongruent Mean RT</th>
+                                <th class="p-3">Interference Cost</th>
+                                <th class="p-3">Accuracy %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="blockComparisonTableBody" class="divide-y divide-slate-800 text-slate-200 font-mono">
+                            <!-- Injected by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Detailed Trial Breakdown Table -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-xl overflow-hidden shadow-sm space-y-2">
+                <div class="bg-slate-900 px-4 py-3 border-b border-slate-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                    <h3 class="font-bold text-xs uppercase text-indigo-300">ตารางสรุปผลรายข้อแบบละเอียด (Detailed Trial Breakdown - 96 ข้อ)</h3>
+                    <input type="text" id="trialSearchInput" placeholder="ค้นหา เช่น Block 1, Incongruent, Incorrect..." class="px-3 py-1 bg-slate-950 border border-slate-700 rounded-lg text-xs text-white outline-none focus:border-indigo-500 w-full sm:w-64">
+                </div>
+                <div class="overflow-x-auto max-h-72 overflow-y-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-950 border-b border-slate-800 text-slate-400 uppercase font-semibold sticky top-0 z-10">
+                            <tr>
+                                <th class="p-2.5">ข้อที่</th>
+                                <th class="p-2.5">บล็อก</th>
+                                <th class="p-2.5">เงื่อนไข</th>
+                                <th class="p-2.5">สิ่งเร้า</th>
+                                <th class="p-2.5">เฉลย</th>
+                                <th class="p-2.5">คำตอบผู้ใช้</th>
+                                <th class="p-2.5 text-center">ผลลัพธ์</th>
+                                <th class="p-2.5 text-right">RT (ms)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailedTrialTableBody" class="divide-y divide-slate-800 text-slate-300 font-mono">
+                            <!-- Injected by JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="text-center pt-2">
+                <button id="restartBtn" class="py-2.5 px-6 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-sm transition">
+                    ทำแบบทดสอบใหม่อีกครั้ง (Restart)
+                </button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Academic Footer -->
+    <footer id="mainFooter" class="w-full py-3 text-center text-xs text-slate-500 border-t border-slate-800 bg-slate-900/90 backdrop-blur-md">
+        Eriksen Flanker Task Experimental Engine &bull; Based on Perceptual Load Theory (Beck & Lavie, 2005)
+    </footer>
+
+    <!-- Application JavaScript Engine -->
+    <script>
+        const CONFIG = {
+            PRACTICE_COUNT: 4,
+            TOTAL_MAIN_TRIALS: 96,
+            TRIALS_PER_BLOCK: 48,
+            FIXATION_DURATION: 500, // ms
+            STIMULUS_DURATION: 150, // ms
+            TIMEOUT_WINDOW: 2000,   // ms
+            ITI_DURATION: 500,      // ms
+            REST_DURATION: 60,      // seconds
+            MIN_VALID_RT: 200,      // ms
+            MAX_VALID_RT: 2000      // ms
+        };
+
+        const STATE = {
+            participant: { id: '', age: '', sleep: '', condition: '' },
+            phase: 'SETUP',
+            currentBlock: 1,
+            trialIndex: 0,
+            practiceQueue: [],
+            mainQueue: [],
+            results: [],
+            
+            stimulusOnsetTime: 0,
+            hasResponded: false,
+            isAcceptingInput: false,
+            currentTimer: null,
+            restInterval: null,
+
+            particles: [],
+            animFrameId: null
+        };
+
+        // Strict 5-Arrow Stimulus Sets
+        const STIMULI = [
+            { text: '<<<<<', target: 'left',  congruency: 'congruent' },
+            { text: '>>>>>', target: 'right', congruency: 'congruent' },
+            { text: '>><>>', target: 'left',  congruency: 'incongruent' },
+            { text: '<<><<', target: 'right', congruency: 'incongruent' }
+        ];
+
+        const DOM = {
+            bgCanvas: document.getElementById('bgCanvas'),
+            mainHeader: document.getElementById('mainHeader'),
+            mainFooter: document.getElementById('mainFooter'),
+            setupScreen: document.getElementById('setupScreen'),
+            instructionsScreen: document.getElementById('instructionsScreen'),
+            readyMainScreen: document.getElementById('readyMainScreen'),
+            trialContainer: document.getElementById('trialContainer'),
+            restScreen: document.getElementById('restScreen'),
+            resultsScreen: document.getElementById('resultsScreen'),
+            
+            demographicsForm: document.getElementById('demographicsForm'),
+            participantId: document.getElementById('participantId'),
+            participantAge: document.getElementById('participantAge'),
+            sleepHours: document.getElementById('sleepHours'),
+            sleepWarning: document.getElementById('sleepWarning'),
+            expCondition: document.getElementById('expCondition'),
+            
+            startPracticeBtn: document.getElementById('startPracticeBtn'),
+            startMainBtn: document.getElementById('startMainBtn'),
+            stimulusDisplay: document.getElementById('stimulusDisplay'),
+            stimulusText: document.getElementById('stimulusText'),
+            practiceFeedback: document.getElementById('practiceFeedback'),
+            trialProgressBadge: document.getElementById('trialProgressBadge'),
+            
+            touchLeftBtn: document.getElementById('touchLeftBtn'),
+            touchRightBtn: document.getElementById('touchRightBtn'),
+            
+            restTimerText: document.getElementById('restTimerText'),
+            continueBlock2Btn: document.getElementById('continueBlock2Btn'),
+            
+            participantSummaryHeader: document.getElementById('participantSummaryHeader'),
+            metricAccuracy: document.getElementById('metricAccuracy'),
+            metricMeanRt: document.getElementById('metricMeanRt'),
+            metricFlankerEffect: document.getElementById('metricFlankerEffect'),
+            metricTrimmed: document.getElementById('metricTrimmed'),
+            blockComparisonTableBody: document.getElementById('blockComparisonTableBody'),
+            detailedTrialTableBody: document.getElementById('detailedTrialTableBody'),
+            trialSearchInput: document.getElementById('trialSearchInput'),
+            exportCsvBtn: document.getElementById('exportCsvBtn'),
+            restartBtn: document.getElementById('restartBtn')
+        };
+
+        /* Particle Dust Engine */
+        const ctx = DOM.bgCanvas.getContext('2d');
+        const VIBRANT_COLORS = ['#ff007f', '#00f3ff', '#ffe600', '#39ff14', '#b026ff', '#ff5e00'];
+
+        function resizeCanvas() {
+            DOM.bgCanvas.width = window.innerWidth;
+            DOM.bgCanvas.height = window.innerHeight;
+        }
+
+        function initParticles() {
+            resizeCanvas();
+            STATE.particles = [];
+            const particleCount = Math.floor((window.innerWidth * window.innerHeight) / 8000);
+            
+            for (let i = 0; i < particleCount; i++) {
+                STATE.particles.push({
+                    x: Math.random() * DOM.bgCanvas.width,
+                    y: Math.random() * DOM.bgCanvas.height,
+                    radius: Math.random() * 2.8 + 1.2,
+                    vx: (Math.random() - 0.5) * 0.9,
+                    vy: (Math.random() - 0.5) * 0.9,
+                    color: VIBRANT_COLORS[Math.floor(Math.random() * VIBRANT_COLORS.length)],
+                    alpha: Math.random() * 0.7 + 0.3
+                });
+            }
+        }
+
+        function renderCanvas() {
+            ctx.clearRect(0, 0, DOM.bgCanvas.width, DOM.bgCanvas.height);
+
+            if (STATE.participant.condition === 'dynamic') {
+                STATE.particles.forEach(p => {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.alpha;
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = p.color;
+                    ctx.fill();
+
+                    p.x += p.vx;
+                    p.y += p.vy;
+
+                    if (p.x < 0 || p.x > DOM.bgCanvas.width) p.vx *= -1;
+                    if (p.y < 0 || p.y > DOM.bgCanvas.height) p.vy *= -1;
+                });
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1.0;
+            }
+
+            STATE.animFrameId = requestAnimationFrame(renderCanvas);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        function generateTrialQueues() {
+            STATE.practiceQueue = shuffleArray([...STIMULI]);
+
+            const createBlock = () => {
+                let blockList = [];
+                for (let i = 0; i < 12; i++) {
+                    STIMULI.forEach(s => blockList.push({ ...s }));
+                }
+                return shuffleArray(blockList);
+            };
+
+            STATE.mainQueue = [...createBlock(), ...createBlock()];
+        }
+
+        function shuffleArray(array) {
+            const arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function setFocusMode(isFocused) {
+            if (isFocused) {
+                DOM.mainHeader.classList.add('hidden');
+                DOM.mainFooter.classList.add('hidden');
+            } else {
+                DOM.mainHeader.classList.remove('hidden');
+                DOM.mainFooter.classList.remove('hidden');
+            }
+        }
+
+        function getCurrentTrialData() {
+            return STATE.phase === 'PRACTICE' ? STATE.practiceQueue[STATE.trialIndex] : STATE.mainQueue[STATE.trialIndex];
+        }
+
+        function runTrialTimeline() {
+            STATE.hasResponded = false;
+            STATE.isAcceptingInput = false;
+            DOM.practiceFeedback.classList.add('hidden');
+            
+            // Fixation Cross (+) 500ms
+            DOM.stimulusText.textContent = '+';
+            DOM.stimulusText.className = "stimulus-text text-7xl font-light text-slate-400 animate-pulse";
+
+            STATE.currentTimer = setTimeout(() => {
+                // Stimulus Exposure 150ms
+                const currentTrial = getCurrentTrialData();
+                DOM.stimulusText.textContent = currentTrial.text;
+                DOM.stimulusText.className = "stimulus-text text-6xl sm:text-8xl font-black text-white tracking-widest filter drop-shadow-2xl";
+                
+                STATE.stimulusOnsetTime = performance.now();
+                STATE.isAcceptingInput = true;
+
+                // Blank Screen Window
+                STATE.currentTimer = setTimeout(() => {
+                    DOM.stimulusText.textContent = ''; 
+
+                    const remainingTimeout = CONFIG.TIMEOUT_WINDOW - CONFIG.STIMULUS_DURATION;
+                    STATE.currentTimer = setTimeout(() => {
+                        if (!STATE.hasResponded) {
+                            handleUserResponse(null);
+                        }
+                    }, remainingTimeout);
+
+                }, CONFIG.STIMULUS_DURATION);
+
+            }, CONFIG.FIXATION_DURATION);
+        }
+
+        function handleUserResponse(userChoice) {
+            if (STATE.hasResponded || (userChoice !== null && !STATE.isAcceptingInput)) return;
+            
+            STATE.hasResponded = true;
+            STATE.isAcceptingInput = false;
+            clearTimeout(STATE.currentTimer);
+
+            const responseTime = performance.now();
+            const rt = userChoice ? Math.round(responseTime - STATE.stimulusOnsetTime) : CONFIG.TIMEOUT_WINDOW;
+            const currentTrial = getCurrentTrialData();
+            const isCorrect = userChoice === currentTrial.target;
+            
+            let rtStatus = 'VALID';
+            if (!userChoice || rt >= CONFIG.MAX_VALID_RT) {
+                rtStatus = 'TOO_SLOW';
+            } else if (rt < CONFIG.MIN_VALID_RT) {
+                rtStatus = 'TOO_FAST';
+            }
+
+            if (STATE.phase === 'MAIN') {
+                STATE.results.push({
+                    participantId: STATE.participant.id,
+                    age: STATE.participant.age,
+                    condition: STATE.participant.condition,
+                    sleepHours: STATE.participant.sleep,
+                    trialNumber: STATE.trialIndex + 1,
+                    block: STATE.currentBlock,
+                    congruency: currentTrial.congruency,
+                    stimulus: currentTrial.text,
+                    target: currentTrial.target,
+                    userResponse: userChoice || 'NONE',
+                    isCorrect: isCorrect ? 1 : 0,
+                    rtStatus: rtStatus,
+                    reactionTimeMs: rt
+                });
+            }
+
+            if (STATE.phase === 'PRACTICE') {
+                DOM.practiceFeedback.classList.remove('hidden');
+                if (!userChoice) {
+                    DOM.practiceFeedback.textContent = 'ตอบช้าเกินไป! (Too Slow)';
+                    DOM.practiceFeedback.className = 'absolute top-1/2 -translate-y-1/2 text-center font-bold text-xl text-amber-400 bg-amber-950/80 border border-amber-600 px-6 py-2 rounded-full backdrop-blur-md';
+                } else if (isCorrect) {
+                    DOM.practiceFeedback.textContent = '✓ ถูกต้อง! (Correct)';
+                    DOM.practiceFeedback.className = 'absolute top-1/2 -translate-y-1/2 text-center font-bold text-xl text-emerald-400 bg-emerald-950/80 border border-emerald-600 px-6 py-2 rounded-full backdrop-blur-md';
+                } else {
+                    DOM.practiceFeedback.textContent = '✕ ตอบผิด! (Incorrect)';
+                    DOM.practiceFeedback.className = 'absolute top-1/2 -translate-y-1/2 text-center font-bold text-xl text-rose-400 bg-rose-950/80 border border-rose-600 px-6 py-2 rounded-full backdrop-blur-md';
+                }
+
+                setTimeout(advanceTrial, 1000);
+            } else {
+                setTimeout(advanceTrial, CONFIG.ITI_DURATION);
+            }
+        }
+
+        function advanceTrial() {
+            STATE.trialIndex++;
+
+            if (STATE.phase === 'PRACTICE') {
+                if (STATE.trialIndex >= CONFIG.PRACTICE_COUNT) {
+                    // ทำซ้อมครบ 4 ข้อ -> ซ่อนแบบทดสอบ และแสดงหน้ากดยืนยันความพร้อมสำหรับ 96 ข้อจริง
+                    DOM.trialContainer.classList.add('hidden');
+                    setFocusMode(false);
+                    DOM.readyMainScreen.classList.remove('hidden');
+                } else {
+                    runTrialTimeline();
+                }
+            } else if (STATE.phase === 'MAIN') {
+                if (STATE.trialIndex === CONFIG.TRIALS_PER_BLOCK) {
+                    STATE.currentBlock = 2;
+                    DOM.trialContainer.classList.add('hidden');
+                    startRestBreak();
+                } else if (STATE.trialIndex >= CONFIG.TOTAL_MAIN_TRIALS) {
+                    DOM.trialContainer.classList.add('hidden');
+                    DOM.trialProgressBadge.classList.add('hidden');
+                    setFocusMode(false);
+                    showResultsDashboard();
+                } else {
+                    updateProgressBadge();
+                    runTrialTimeline();
+                }
+            }
+        }
+
+        function updateProgressBadge() {
+            const blockTrialNum = STATE.trialIndex >= 48 ? STATE.trialIndex - 48 : STATE.trialIndex;
+            DOM.trialProgressBadge.textContent = `Block ${STATE.currentBlock}/2 | Trial ${blockTrialNum + 1}/${CONFIG.TRIALS_PER_BLOCK}`;
+        }
+
+        function startRestBreak() {
+            setFocusMode(false);
+            DOM.restScreen.classList.remove('hidden');
+            let timeLeft = CONFIG.REST_DURATION;
+            DOM.restTimerText.textContent = timeLeft;
+
+            STATE.restInterval = setInterval(() => {
+                timeLeft--;
+                DOM.restTimerText.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(STATE.restInterval);
+                }
+            }, 1000);
+        }
+
+        function showResultsDashboard() {
+            DOM.resultsScreen.classList.remove('hidden');
+            DOM.participantSummaryHeader.textContent = `Participant ID: ${STATE.participant.id} | Age: ${STATE.participant.age} | Sleep: ${STATE.participant.sleep} hrs | Condition: ${STATE.participant.condition.toUpperCase()}`;
+
+            const total = STATE.results.length;
+            const correctCount = STATE.results.filter(r => r.isCorrect === 1).length;
+            const overallAccuracy = ((correctCount / total) * 100).toFixed(1);
+
+            const validCorrect = STATE.results.filter(r => r.isCorrect === 1 && r.rtStatus === 'VALID');
+            const meanRt = validCorrect.length > 0 ? Math.round(validCorrect.reduce((a, b) => a + b.reactionTimeMs, 0) / validCorrect.length) : 0;
+
+            const congruentValid = validCorrect.filter(r => r.congruency === 'congruent');
+            const incongruentValid = validCorrect.filter(r => r.congruency === 'incongruent');
+
+            const meanCongruentRt = congruentValid.length > 0 ? Math.round(congruentValid.reduce((a, b) => a + b.reactionTimeMs, 0) / congruentValid.length) : 0;
+            const meanIncongruentRt = incongruentValid.length > 0 ? Math.round(incongruentValid.reduce((a, b) => a + b.reactionTimeMs, 0) / incongruentValid.length) : 0;
+            const flankerEffect = meanIncongruentRt - meanCongruentRt;
+
+            const trimmedCount = STATE.results.filter(r => r.rtStatus !== 'VALID').length;
+
+            DOM.metricAccuracy.textContent = `${overallAccuracy}%`;
+            DOM.metricMeanRt.textContent = `${meanRt} ms`;
+            DOM.metricFlankerEffect.textContent = `${flankerEffect} ms`;
+            DOM.metricTrimmed.textContent = trimmedCount;
+
+            let blockHtml = '';
+            [1, 2].forEach(bNum => {
+                const bResults = STATE.results.filter(r => r.block === bNum);
+                const bCorrectValid = bResults.filter(r => r.isCorrect === 1 && r.rtStatus === 'VALID');
+                const bCong = bCorrectValid.filter(r => r.congruency === 'congruent');
+                const bIncong = bCorrectValid.filter(r => r.congruency === 'incongruent');
+
+                const meanC = bCong.length > 0 ? Math.round(bCong.reduce((a, b) => a + b.reactionTimeMs, 0) / bCong.length) : 0;
+                const meanI = bIncong.length > 0 ? Math.round(bIncong.reduce((a, b) => a + b.reactionTimeMs, 0) / bIncong.length) : 0;
+                const bCost = meanI - meanC;
+                const bAcc = bResults.length > 0 ? ((bResults.filter(r => r.isCorrect === 1).length / bResults.length) * 100).toFixed(1) : '0.0';
+
+                blockHtml += `
+                    <tr>
+                        <td class="p-3 font-semibold text-indigo-400">Block ${bNum}</td>
+                        <td class="p-3">${meanC} ms</td>
+                        <td class="p-3">${meanI} ms</td>
+                        <td class="p-3 text-amber-400 font-bold">${bCost} ms</td>
+                        <td class="p-3 text-emerald-400 font-bold">${bAcc}%</td>
+                    </tr>
+                `;
+            });
+            DOM.blockComparisonTableBody.innerHTML = blockHtml;
+
+            renderDetailedTrialTable();
+        }
+
+        function renderDetailedTrialTable(filterText = '') {
+            let html = '';
+            STATE.results.forEach(r => {
+                const matchStr = `Block ${r.block} ${r.congruency} ${r.stimulus} ${r.isCorrect ? 'Correct' : 'Incorrect'}`.toLowerCase();
+                if (filterText && !matchStr.includes(filterText.toLowerCase())) return;
+
+                const resultBadge = r.isCorrect 
+                    ? '<span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 text-[10px]">CORRECT</span>'
+                    : '<span class="px-2 py-0.5 rounded bg-rose-950 text-rose-400 border border-rose-800 text-[10px]">INCORRECT</span>';
+
+                html += `
+                    <tr class="hover:bg-slate-800/50 transition">
+                        <td class="p-2.5">${r.trialNumber}</td>
+                        <td class="p-2.5">Block ${r.block}</td>
+                        <td class="p-2.5 capitalize ${r.congruency === 'congruent' ? 'text-indigo-300' : 'text-amber-300'}">${r.congruency}</td>
+                        <td class="p-2.5 font-bold tracking-widest">${r.stimulus}</td>
+                        <td class="p-2.5 uppercase">${r.target}</td>
+                        <td class="p-2.5 uppercase">${r.userResponse}</td>
+                        <td class="p-2.5 text-center">${resultBadge}</td>
+                        <td class="p-2.5 text-right ${r.rtStatus !== 'VALID' ? 'text-rose-400 line-through' : 'text-white'}">${r.reactionTimeMs}</td>
+                    </tr>
+                `;
+            });
+            DOM.detailedTrialTableBody.innerHTML = html;
+        }
+
+        function exportToCSV() {
+            const headers = [
+                "Participant_ID", "Age", "Condition", "Sleep_Hours", "Trial_Number", 
+                "Block", "Congruency", "Stimulus", "Target", "User_Response", 
+                "Is_Correct", "RT_Status", "Reaction_Time_ms"
+            ];
+
+            let csvContent = headers.join(",") + "\n";
+
+            STATE.results.forEach(r => {
+                const row = [
+                    `"${r.participantId}"`, r.age, `"${r.condition}"`, r.sleepHours, r.trialNumber,
+                    r.block, `"${r.congruency}"`, `"${r.stimulus}"`, `"${r.target}"`, `"${r.userResponse}"`,
+                    r.isCorrect, `"${r.rtStatus}"`, r.reactionTimeMs
+                ];
+                csvContent += row.join(",") + "\n";
+            });
+
+            const blob = new Blob(["\ufeff" + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            link.setAttribute("download", `Flanker_Task_${STATE.participant.id}_${Date.now()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Event Listeners Setup
+        DOM.demographicsForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            STATE.participant.id = DOM.participantId.value.trim();
+            STATE.participant.age = DOM.participantAge.value;
+            STATE.participant.sleep = DOM.sleepHours.value;
+            STATE.participant.condition = DOM.expCondition.value;
+
+            initParticles();
+            renderCanvas();
+
+            DOM.setupScreen.classList.add('hidden');
+            DOM.instructionsScreen.classList.remove('hidden');
+        });
+
+        DOM.sleepHours.addEventListener('input', () => {
+            if (parseFloat(DOM.sleepHours.value) < 6) {
+                DOM.sleepWarning.classList.remove('hidden');
+            } else {
+                DOM.sleepWarning.classList.add('hidden');
+            }
+        });
+
+        DOM.startPracticeBtn.addEventListener('click', () => {
+            generateTrialQueues();
+            STATE.phase = 'PRACTICE';
+            STATE.trialIndex = 0;
+            setFocusMode(true);
+            DOM.instructionsScreen.classList.add('hidden');
+            DOM.trialContainer.classList.remove('hidden');
+            runTrialTimeline();
+        });
+
+        // Event listener กดปุ่มเพื่อเริ่มแบบทดสอบจริง 96 ข้อ
+        DOM.startMainBtn.addEventListener('click', () => {
+            DOM.readyMainScreen.classList.add('hidden');
+            DOM.trialContainer.classList.remove('hidden');
+            DOM.trialProgressBadge.classList.remove('hidden');
+            STATE.phase = 'MAIN';
+            STATE.trialIndex = 0;
+            STATE.currentBlock = 1;
+            setFocusMode(true);
+            updateProgressBadge();
+            runTrialTimeline();
+        });
+
+        DOM.continueBlock2Btn.addEventListener('click', () => {
+            if (STATE.restInterval) clearInterval(STATE.restInterval);
+            DOM.restScreen.classList.add('hidden');
+            DOM.trialContainer.classList.remove('hidden');
+            setFocusMode(true);
+            updateProgressBadge();
+            runTrialTimeline();
+        });
+
+        DOM.touchLeftBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); handleUserResponse('left'); });
+        DOM.touchRightBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); handleUserResponse('right'); });
+
+        window.addEventListener('keydown', (e) => {
+            if (DOM.trialContainer.classList.contains('hidden')) return;
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                handleUserResponse('left');
+            } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                handleUserResponse('right');
+            }
+        });
+
+        DOM.trialSearchInput.addEventListener('input', (e) => {
+            renderDetailedTrialTable(e.target.value);
+        });
+
+        DOM.exportCsvBtn.addEventListener('click', exportToCSV);
+
+        DOM.restartBtn.addEventListener('click', () => {
+            location.reload();
+        });
+    </script>
+</body>
+</html>
